@@ -4,6 +4,6 @@ Has tests to reproduce the DeferredOutputStream stall issue encountered on Tomca
 
 Run using,
 ```
-mvn test 
+$ mvn test 
 ```
 
