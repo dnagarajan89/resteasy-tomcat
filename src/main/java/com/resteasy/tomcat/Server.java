@@ -1,12 +1,11 @@
 package com.resteasy.tomcat;
 
 
-
+import jakarta.ws.rs.core.Application;
 import org.apache.catalina.Context;
 import org.apache.catalina.startup.Tomcat;
 import org.jboss.resteasy.plugins.server.servlet.HttpServlet30Dispatcher;
 
-import javax.ws.rs.core.Application;
 import java.io.File;
 import java.util.Collections;
 import java.util.HashSet;
@@ -24,7 +23,7 @@ public class Server {
         tomcat.setPort(portNum);
         tomcat.getConnector();
         final Context ctx = tomcat.addContext("/", new File(".").getAbsolutePath());
-        ctx.addParameter("javax.ws.rs.Application", JaxrsApplication.class.getName());
+        ctx.addParameter("jakarta.ws.rs.Application", JaxrsApplication.class.getName());
         Tomcat.addServlet(ctx, "rest-easy-servlet", new HttpServlet30Dispatcher());
         ctx.addServletMappingDecoded("/*", "rest-easy-servlet");
         return tomcat;
