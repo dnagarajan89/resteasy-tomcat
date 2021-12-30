@@ -1,15 +1,19 @@
 package com.resteasy.tomcat;
 
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.client.Entity;
 import org.apache.catalina.startup.Tomcat;
+import org.jboss.resteasy.reactor.MonoRxInvoker;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
 import java.net.SocketTimeoutException;
+import java.net.http.HttpClient;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
@@ -95,5 +99,18 @@ public class TomcatTest {
     @Test
     public void testEchoAsyncParallel() {
         callStreaming("async", 10);
+    }
+
+    @Test
+    public void testEchoAsyncReactive() {
+        final int numberOfCalls = 50;
+        StepVerifier.create(Flux.range(0, numberOfCalls)
+                .flatMap(i -> client
+                .target(String.format("http://localhost:%s/stream/async/reactive/%s", PORT, i))
+                .request()
+                .rx(MonoRxInvoker.class)
+                .post(Entity.text("Test Request " + i))
+                .map(response -> response.readEntity(String.class)))
+        ).expectNextCount(50).verifyComplete();
     }
 }
