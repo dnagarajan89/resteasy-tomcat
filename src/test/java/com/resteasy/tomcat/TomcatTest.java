@@ -111,6 +111,6 @@ public class TomcatTest {
                 .rx(MonoRxInvoker.class)
                 .post(Entity.text("Test Request " + i))
                 .map(response -> response.readEntity(String.class)))
-        ).expectNextCount(50).verifyComplete();
+        ).expectNextCount(numberOfCalls).verifyComplete();
     }
 }
