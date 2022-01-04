@@ -1,11 +1,9 @@
 package com.resteasy.tomcat;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -15,11 +13,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.InputStream;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Path("/stream")
 public class AsyncStreaming {
@@ -32,70 +30,36 @@ public class AsyncStreaming {
     }
 
     @POST
-    @Path("/async/reactive/{id}")
+    @Path("/async/reactive/{noOfItems}")
     @Produces(MediaType.APPLICATION_JSON)
-    public Mono<ResponseHolder> echoAsyncReactive(@PathParam("id") final String id, final String requestBody) {
-        final Map<String, String> headers = Map.of(
-                "testHeader1", "testHeaderValue1",
-                "testHeader2", "testHeaderValue2",
-                "testHeader3", "testHeaderValue3",
-                "testHeader4", "testHeaderValue4"
-        );
-        return Flux.range(0, 50)
-                .flatMap(i -> Mono.just(createResponseObject(requestBody, id, headers)).delayElement(Duration.ofMillis(50)))
-                .collectList()
-                .map(list ->  {
-                    final AtomicInteger counter = new AtomicInteger(0);
-                    final Map<String, ResponseData> responses = list
-                            .stream()
-                            .collect(Collectors.toMap(e -> String.valueOf(counter.incrementAndGet()), Function.identity()));
-                    return new ResponseHolder(requestBody, headers, responses);
-                });
-    }
-
-    private ResponseData createResponseObject(final String requestBody,
-                                              final String id,
-                                              final Map<String, String> headers) {
-
-        return new ResponseData(requestBody + "_response", headers);
-    }
-
-
-    // Some big object that helps reproduce the issue during concurrent calls.
-    public static class ResponseHolder {
-        private final String requestData;
-        private final Map<String, String> headers;
-        private final Map<String, ResponseData> responses;
-        public ResponseHolder(final String requestData,
-                              final Map<String, String> headers,
-                              final Map<String, ResponseData> responses) {
-            this.requestData = requestData;
-            this.responses = responses;
-            this.headers = headers;
-        }
-
-        public String getRequestData() {
-            return requestData;
-        }
-
-        public Map<String, String> getHeaders() {
-            return headers;
-        }
-
-        public Map<String, ResponseData> getResponses() {
-            return responses;
-        }
+    public Mono<List<ResponseData>> echoAsyncReactive(@PathParam("noOfItems") final int noOfItems,
+                                                      final String requestBody) {
+        final Map<String, String> headers = IntStream.range(1, 5)
+                .mapToObj(i -> new String[]{ "testHeader" + i, "testHeaderValue" + i})
+                .collect(Collectors.toMap(data -> data[0], data -> data[1]));
+        return Flux.range(0, noOfItems)
+                .flatMap(index -> Mono
+                        .just(new ResponseData(index, requestBody + "_response", headers))
+                        .delayElement(Duration.ofMillis(1))
+                ).collectList();
     }
 
     public static class ResponseData {
+        private final Integer id;
         private final String responseBody;
         private final Map<String, String> headers;
 
 
-        public ResponseData(final String responseBody,
+        public ResponseData(final Integer id,
+                            final String responseBody,
                             final Map<String, String> headers) {
+            this.id = id;
             this.responseBody = responseBody;
             this.headers = headers;
+        }
+
+        public Integer getId() {
+            return id;
         }
 
         public String getResponseBody() {

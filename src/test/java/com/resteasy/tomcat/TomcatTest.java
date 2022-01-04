@@ -1,5 +1,7 @@
 package com.resteasy.tomcat;
 
+import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.HttpMethod;
 import org.apache.catalina.startup.Tomcat;
 import org.jboss.resteasy.reactor.MonoRxInvoker;
 import org.junit.AfterClass;
@@ -7,18 +9,21 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
-import reactor.test.StepVerifier;
+import reactor.core.publisher.Mono;
+import reactor.netty.ByteBufMono;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.HttpClientResponse;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import java.net.SocketTimeoutException;
-import java.net.http.HttpClient;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -104,13 +109,15 @@ public class TomcatTest {
     @Test
     public void testEchoAsyncReactive() {
         final int numberOfCalls = 50;
-        StepVerifier.create(Flux.range(0, numberOfCalls)
+        final int numberOfItems = 50;
+        final List<String> responses = Flux.range(0, numberOfCalls)
                 .flatMap(i -> client
-                .target(String.format("http://localhost:%s/stream/async/reactive/%s", PORT, i))
-                .request()
-                .rx(MonoRxInvoker.class)
-                .post(Entity.text("Test Request " + i))
-                .map(response -> response.readEntity(String.class)))
-        ).expectNextCount(numberOfCalls).verifyComplete();
+                        .target(String.format("http://localhost:%s/stream/async/reactive/%s", PORT, numberOfItems))
+                        .request()
+                        .rx(MonoRxInvoker.class)
+                        .post(Entity.text("Test Request " + i))
+                        .map(response -> response.readEntity(String.class)))
+                        .collectList().block();
+        responses.forEach(System.out::println);
     }
 }
