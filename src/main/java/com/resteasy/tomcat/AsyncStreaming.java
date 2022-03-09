@@ -9,6 +9,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.InputStream;
@@ -34,7 +35,7 @@ public class AsyncStreaming {
     @Produces(MediaType.APPLICATION_JSON)
     public Mono<List<ResponseData>> echoAsyncReactive(@PathParam("noOfItems") final int noOfItems,
                                                       final String requestBody) {
-        final Map<String, String> headers = IntStream.range(1, 5)
+        final Map<String, String> headers = IntStream.range(1, 500)
                 .mapToObj(i -> new String[]{ "testHeader" + i, "testHeaderValue" + i})
                 .collect(Collectors.toMap(data -> data[0], data -> data[1]));
         return Flux.range(0, noOfItems)
@@ -42,6 +43,17 @@ public class AsyncStreaming {
                         .just(new ResponseData(index, requestBody + "_response", headers))
                         .delayElement(Duration.ofMillis(1))
                 ).collectList();
+    }
+
+    @POST
+    @Path("/sync/bigFile")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response bigFile(final String requestBody) {
+        return Response
+                .ok(requestBody)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.CONTENT_LENGTH, requestBody.length())
+                .build();
     }
 
     public static class ResponseData {

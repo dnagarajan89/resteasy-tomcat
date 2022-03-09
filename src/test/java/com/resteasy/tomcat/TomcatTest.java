@@ -1,29 +1,41 @@
 package com.resteasy.tomcat;
 
-import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.HttpMethod;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
+import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.socket.PlainConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.http.ssl.TrustStrategy;
 import org.jboss.resteasy.reactor.MonoRxInvoker;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.netty.ByteBufMono;
-import reactor.netty.http.client.HttpClient;
-import reactor.netty.http.client.HttpClientResponse;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
+import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -119,5 +131,35 @@ public class TomcatTest {
                         .map(response -> response.readEntity(String.class)))
                         .collectList().block();
         responses.forEach(System.out::println);
+    }
+
+    @Test
+    public void testClientAbortException() throws Exception {
+
+        TrustStrategy acceptingTrustStrategy = (cert, authType) -> true;
+        SSLContext sslContext = SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
+        SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext,
+                NoopHostnameVerifier.INSTANCE);
+
+        Registry<ConnectionSocketFactory> socketFactoryRegistry =
+                RegistryBuilder.<ConnectionSocketFactory> create()
+                        .register("https", sslsf)
+                        .register("http", new PlainConnectionSocketFactory())
+                        .build();
+
+        BasicHttpClientConnectionManager connectionManager =
+                new BasicHttpClientConnectionManager(socketFactoryRegistry);
+        CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(sslsf)
+                .setConnectionManager(connectionManager).build();
+
+        final HttpPost httpPost = new HttpPost(String.format("https://localhost:8443/v1/testresource/sync/bigpayload"));
+        final InputStream is = TomcatTest.class.getClassLoader().getResourceAsStream("big_radd_variable.json");
+        httpPost.setEntity(new InputStreamEntity(is));
+        final ExecutorService executors = Executors.newFixedThreadPool(1);
+        final Future<HttpResponse> responseFuture = executors.submit(()-> httpClient.execute(httpPost));
+        Thread.sleep(200);
+        httpPost.abort();
+        final HttpResponse httpResponse = responseFuture.get();
+        System.out.println(httpResponse);
     }
 }
