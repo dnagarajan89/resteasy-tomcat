@@ -132,34 +132,4 @@ public class TomcatTest {
                         .collectList().block();
         responses.forEach(System.out::println);
     }
-
-    @Test
-    public void testClientAbortException() throws Exception {
-
-        TrustStrategy acceptingTrustStrategy = (cert, authType) -> true;
-        SSLContext sslContext = SSLContexts.custom().loadTrustMaterial(null, acceptingTrustStrategy).build();
-        SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(sslContext,
-                NoopHostnameVerifier.INSTANCE);
-
-        Registry<ConnectionSocketFactory> socketFactoryRegistry =
-                RegistryBuilder.<ConnectionSocketFactory> create()
-                        .register("https", sslsf)
-                        .register("http", new PlainConnectionSocketFactory())
-                        .build();
-
-        BasicHttpClientConnectionManager connectionManager =
-                new BasicHttpClientConnectionManager(socketFactoryRegistry);
-        CloseableHttpClient httpClient = HttpClients.custom().setSSLSocketFactory(sslsf)
-                .setConnectionManager(connectionManager).build();
-
-        final HttpPost httpPost = new HttpPost(String.format("https://localhost:8443/v1/testresource/sync/bigpayload"));
-        final InputStream is = TomcatTest.class.getClassLoader().getResourceAsStream("big_radd_variable.json");
-        httpPost.setEntity(new InputStreamEntity(is));
-        final ExecutorService executors = Executors.newFixedThreadPool(1);
-        final Future<HttpResponse> responseFuture = executors.submit(()-> httpClient.execute(httpPost));
-        Thread.sleep(200);
-        httpPost.abort();
-        final HttpResponse httpResponse = responseFuture.get();
-        System.out.println(httpResponse);
-    }
 }
