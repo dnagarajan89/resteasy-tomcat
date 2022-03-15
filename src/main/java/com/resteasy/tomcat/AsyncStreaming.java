@@ -35,7 +35,7 @@ public class AsyncStreaming {
     @Produces(MediaType.APPLICATION_JSON)
     public Mono<List<ResponseData>> echoAsyncReactive(@PathParam("noOfItems") final int noOfItems,
                                                       final String requestBody) {
-        final Map<String, String> headers = IntStream.range(1, 500)
+        final Map<String, String> headers = IntStream.range(1, 250)
                 .mapToObj(i -> new String[]{ "testHeader" + i, "testHeaderValue" + i})
                 .collect(Collectors.toMap(data -> data[0], data -> data[1]));
         return Flux.range(0, noOfItems)

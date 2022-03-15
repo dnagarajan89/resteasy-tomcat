@@ -121,7 +121,7 @@ public class TomcatTest {
     @Test
     public void testEchoAsyncReactive() {
         final int numberOfCalls = 50;
-        final int numberOfItems = 50;
+        final int numberOfItems = 500;
         final List<String> responses = Flux.range(0, numberOfCalls)
                 .flatMap(i -> client
                         .target(String.format("http://localhost:%s/stream/async/reactive/%s", PORT, numberOfItems))
